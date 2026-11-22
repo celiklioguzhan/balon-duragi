@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Oyun" parent="android:Theme.Material.Light.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/arka</item>
+        <item name="android:statusBarColor">@color/arka</item>
+    </style>
+    <color name="arka">#4FC3FF</color>
+    <color name="ikon_arka">#4FC3FF</color>
+</resources>

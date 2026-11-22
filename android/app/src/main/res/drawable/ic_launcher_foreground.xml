@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- ip -->
+    <path android:strokeColor="#2A1A5E" android:strokeWidth="2.5" android:pathData="M54,72 Q50,80 55,88" />
+    <!-- balon -->
+    <path android:fillColor="#2A1A5E" android:pathData="M54,26 C68,26 76,37 76,49 C76,61 66,70 54,70 C42,70 32,61 32,49 C32,37 40,26 54,26 Z" />
+    <path android:fillColor="#FF4F8B" android:pathData="M54,29 C66,29 73,39 73,49 C73,59 64,67 54,67 C44,67 35,59 35,49 C35,39 42,29 54,29 Z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.85" android:pathData="M44,38 C47,34 52,33 55,35 C51,36 48,39 46,43 Z" />
+    <!-- düğüm -->
+    <path android:fillColor="#2A1A5E" android:pathData="M50,69 L58,69 L54,74 Z" />
+</vector>

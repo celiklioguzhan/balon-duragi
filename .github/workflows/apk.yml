@@ -1,0 +1,81 @@
+# Her gönderimde Android uygulamasını derler ve "apk" sürümü olarak yayınlar.
+# İndirme linki: https://github.com/celiklioguzhan/balon-duragi/releases/latest/download/BalonDuragi.apk
+#
+# İmza: depoda anahtar yoktur. IMZA_JKS / IMZA_SIFRE gizli değişkenleri (Settings > Secrets) varsa onlar kullanılır;
+# yoksa ilk derlemede bir test anahtarı üretilir ve GitHub'ın gizli önbelleğinde saklanır, sonraki derlemeler
+# aynı anahtarla imzalanır (yeni APK eskisinin üstüne kurulabilsin diye). Play Store için ayrı anahtar kullanılacak.
+name: APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Test imzasını önbellekten al
+        uses: actions/cache@v4
+        with:
+          path: ~/imza
+          key: balon-test-imza-v1
+
+      - name: İmza anahtarını hazırla
+        env:
+          IMZA_JKS: ${{ secrets.IMZA_JKS }}
+          IMZA_SIFRE_GIZLI: ${{ secrets.IMZA_SIFRE }}
+        run: |
+          mkdir -p ~/imza
+          if [ -n "$IMZA_JKS" ]; then
+            echo "$IMZA_JKS" | base64 -d > ~/imza/gizli.jks
+            echo "IMZA_DOSYA=$HOME/imza/gizli.jks" >> "$GITHUB_ENV"
+            echo "::add-mask::$IMZA_SIFRE_GIZLI"
+            echo "IMZA_SIFRE=$IMZA_SIFRE_GIZLI" >> "$GITHUB_ENV"
+          else
+            if [ ! -f ~/imza/test.jks ]; then
+              openssl rand -hex 16 > ~/imza/sifre.txt
+              keytool -genkeypair -keystore ~/imza/test.jks -alias balon -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass "$(cat ~/imza/sifre.txt)" -keypass "$(cat ~/imza/sifre.txt)" -dname "CN=Balon Duragi Test"
+            fi
+            echo "::add-mask::$(cat ~/imza/sifre.txt)"
+            echo "IMZA_DOSYA=$HOME/imza/test.jks" >> "$GITHUB_ENV"
+            echo "IMZA_SIFRE=$(cat ~/imza/sifre.txt)" >> "$GITHUB_ENV"
+          fi
+
+      - name: Oyunun son hâlini uygulamanın çevrimdışı kopyasına koy
+        run: cp index.html android/app/src/main/assets/index.html
+
+      - name: APK oluştur
+        working-directory: android
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: APK'yı adlandır
+        run: cp android/app/build/outputs/apk/release/app-release.apk BalonDuragi.apk
+
+      - name: Sürüm olarak yayınla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk BalonDuragi.apk --title "Balon Durağı (test APK)" \
+            --notes "Telefona kurmak için BalonDuragi.apk dosyasını indir. Oyun güncellemeleri uygulamaya kendiliğinden gelir; bu APK yalnızca uygulamanın kabuğu değişince yenilenir." \
+            --latest
