@@ -157,8 +157,8 @@ button:focus-visible, .node:focus-visible { outline: 3px solid var(--accent); ou
 .sp { border-radius: 26%; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: calc(var(--cell) * 0.5); line-height: 1; color: var(--ink); box-shadow: 0 0 0 2px rgba(255,255,255,0.9) inset, 0 0 0 2.5px var(--ink), 0 0 14px rgba(255, 230, 120, 0.8); }
 .sp::after { content: ""; position: absolute; inset: -8%; border-radius: inherit; border: 2px solid rgba(255, 255, 255, 0.55); animation: halo 1.3s ease-out infinite; }
 @keyframes halo { from { transform: scale(0.85); opacity: 0.9; } to { transform: scale(1.22); opacity: 0; } }
-.rocketH, .rocketV { background: linear-gradient(135deg, #fff3b8, var(--gold) 55%, #f29a1f); }
-.rocketH::before { content: "↔"; } .rocketV::before { content: "↕"; }
+.rocketH, .rocketV, .rocketX { background: linear-gradient(135deg, #fff3b8, var(--gold) 55%, #f29a1f); }
+.rocketH::before { content: "↔"; } .rocketV::before { content: "↕"; } .rocketX::before { content: "✚"; }
 .bomb { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #7d6bd6, #1d1248 70%); color: var(--gold); }
 .bomb::before { content: "✹"; }
 .rainbow { border-radius: 50%; background: conic-gradient(var(--c0), var(--c1), var(--c2), var(--c3), var(--c4), var(--c5), var(--c0)); animation: spin 3s linear infinite; }
@@ -793,7 +793,7 @@ const CATS = {
     how: '', after: 'Paşa uyudu, sen 3 hamle kazandın. Sıkışınca çağır!' },
 };
 // Puan: balon başına 30, zincirin her adımında katlanır; engeller, özel taşlar ve yavrular ek puan verir.
-const SCORE = { balloon: 30, block: 60, rescue: 1000, special: { rocketH: 200, rocketV: 200, bomb: 300, rainbow: 500 }, finaleSpecial: 400, finaleMove: 250 };
+const SCORE = { balloon: 30, block: 60, rescue: 1000, special: { rocketH: 200, rocketV: 200, rocketX: 450, bomb: 300, rainbow: 500 }, finaleSpecial: 400, finaleMove: 250 };
 const SPAWN_LUCK = 0.2;       // yukarıdan düşen balonun alttakiyle aynı renkte gelme şansı: zincirleri sıklaştırır
 const COMBO_GIFT = { 4: 'rocket', 6: 'bomb', 8: 'rainbow' };   // bu zincir uzunluğunda tahtaya hediye özel taş düşer
 const DIAMOND_BIG = 10;        // bu duraktan sonra (0'dan sayılır: 11. durak ve sonrası) ödül büyür
@@ -842,7 +842,7 @@ function hardOf(level) {
 
 function rnd(n) { return Math.floor(Math.random() * n); }
 function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
-const SPECIALS = { rocketH: 1, rocketV: 1, bomb: 1, rainbow: 1 };
+const SPECIALS = { rocketH: 1, rocketV: 1, rocketX: 1, bomb: 1, rainbow: 1 };
 function isSpecial(t) { return !!t && SPECIALS[t.kind] === 1; }
 function canSwap(t) { return !!t && ((t.kind === 'b' && !t.lock) || isSpecial(t) || t.kind === 'kitten'); }
 /** Yanında eşleşme olunca ya da patlamayla kırılan engeller. */
@@ -965,6 +965,7 @@ function blastCells(grid, r, c, color) {
   const t = grid[r][c], cells = [[r, c]];
   if (t.kind === 'rocketH') { for (let x = 0; x < COLS; x++) cells.push([r, x]); }
   else if (t.kind === 'rocketV') { for (let y = 0; y < ROWS; y++) cells.push([y, c]); }
+  else if (t.kind === 'rocketX') { for (let x = 0; x < COLS; x++) cells.push([r, x]); for (let y = 0; y < ROWS; y++) cells.push([y, c]); }
   else if (t.kind === 'bomb') {
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
       const near = Math.abs(dy) <= 1 && Math.abs(dx) <= 1;
@@ -1146,9 +1147,14 @@ function move(g, a, b) {
   if (b) {
     g.grid[a[0]][a[1]] = tb; g.grid[b[0]][b[1]] = ta;
     // iki roket birleşince artı roket olur: biri satırı, öteki sütunu temizler (yatay+yatay da)
-    if (isRocket(ta) && isRocket(tb)) { ta.kind = 'rocketH'; tb.kind = 'rocketV'; cross = true; }
-    if (isSpecial(ta)) acts.push({ r: b[0], c: b[1], color: isB(tb) ? tb.color : -1 });
-    if (isSpecial(tb)) acts.push({ r: a[0], c: a[1], color: isB(ta) ? ta.color : -1 });
+    if (isRocket(ta) && isRocket(tb)) {
+      // iki roket tek taşta birleşir: artı roket, aynı merkezden hem satırı hem sütunu temizler
+      ta.kind = 'rocketX'; g.grid[a[0]][a[1]] = null; cross = true;
+      acts.push({ r: b[0], c: b[1], color: -1 });
+    } else {
+      if (isSpecial(ta)) acts.push({ r: b[0], c: b[1], color: isB(tb) ? tb.color : -1 });
+      if (isSpecial(tb)) acts.push({ r: a[0], c: a[1], color: isB(ta) ? ta.color : -1 });
+    }
     if (!acts.length && !matchAt(g.grid, a[0], a[1]) && !matchAt(g.grid, b[0], b[1])) {
       g.grid[a[0]][a[1]] = ta; g.grid[b[0]][b[1]] = tb;
       return { invalid: true, swapped: [a, b] };
@@ -2539,10 +2545,14 @@ async function attempt(a, b) {
   }
   if (res.cross && elA && elB) {
     // iki roket kesişir: artı roket
-    elA.firstChild.className = tileClass({ kind: 'rocketH', color: -1 });
-    elB.firstChild.className = tileClass({ kind: 'rocketV', color: -1 });
-    flash(elA, 'born', 440); flash(elB, 'born', 440);
-    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    // ikinci roket birincinin içine kayar, tek bir artı roket doğar
+    elB.classList.add('merge'); place(elB, b[0], b[1]);
+    for (const [id, el] of els) if (el === elB) els.delete(id);
+    await wait(200);
+    elB.remove();
+    elA.firstChild.className = tileClass({ kind: 'rocketX', color: -1 });
+    flash(elA, 'born', 440);
+    const m = b;
     fxRing(m[0], m[1], '#ffe94d', cell * 1.6, 0.5, 8); fxStars(m[0], m[1], '#ffe94d', 12);
     fxText(m[0] - 0.6, m[1], 'ARTI ROKET!', '#ffe94d', cell * 0.55, 0.9);
     beep(988, 0.12, 'square', 0.08, 1.3);
@@ -2590,7 +2600,7 @@ async function playGift(gift, combo) {
   flash(el, 'born', 440);
   fxRing(gift.r, gift.c, '#ffcf3f', cell * 1.6, 0.7, 7); fxStars(gift.r, gift.c, '#ffe94d', 14);
   beep(988, 0.3, 'triangle', 0.12, 1.4);
-  const name = { rocketH: 'roket', rocketV: 'roket', bomb: 'bomba', rainbow: 'gökkuşağı' }[gift.tile.kind];
+  const name = { rocketH: 'roket', rocketV: 'roket', rocketX: 'artı roket', bomb: 'bomba', rainbow: 'gökkuşağı' }[gift.tile.kind];
   say(combo + ' kombo hediyesi: ' + name + '!', true);
   await wait(500);
 }
@@ -2902,6 +2912,7 @@ async function playStep(step, combo) {
     origin = origin || bl;
     if (bl.kind === 'rocketH') fxLightning(bl.r, bl.c, true);
     else if (bl.kind === 'rocketV') fxLightning(bl.r, bl.c, false);
+    else if (bl.kind === 'rocketX') { fxLightning(bl.r, bl.c, true); fxLightning(bl.r, bl.c, false); fxRing(bl.r, bl.c, '#ffe94d', cell * 1.5, 0.45, 8); }
     else if (bl.kind === 'bomb') {
       fxRing(bl.r, bl.c, '#ffcf3f', cell * 3, 0.7, 12); fxRing(bl.r, bl.c, '#ffffff', cell * 2, 0.5, 7);
       setTimeout(() => fxRing(bl.r, bl.c, '#ff7a1a', cell * 3.6, 0.7, 6), 160);
