@@ -2239,6 +2239,28 @@ function fall(el, r, c, delay) {
   const dist = Math.max(0, r - el._r);
   const dur = dist ? Math.min(560, 170 + dist * 55) : 180;
   el.classList.remove('now');
+  const from = el._r;
+  // yol boşluk (şekil dışı) hücreden geçiyorsa: balon orada görünmez, kenardan süzülüp çıkar
+  const open = y => { const yy = Math.max(0, Math.min(ROWS - 1, Math.round(y))); return !isVoid(game.grid[yy][c]); };
+  let gap = false;
+  for (let y = Math.floor(from); y <= r; y++) if (!open(y)) { gap = true; break; }
+  if (dist && gap && el.animate) {
+    for (const a of el.getAnimations()) a.cancel();
+    el.style.transitionDuration = '0ms';
+    el.style.transitionDelay = '0ms';
+    const frames = [];
+    const steps = Math.ceil(r - from);
+    for (let i = 0; i <= steps; i++) {
+      const y = Math.min(r, from + i);
+      frames.push({ offset: (y - from) / (r - from), transform: 'translate(' + c * cell + 'px,' + y * cell + 'px)', opacity: open(y) ? 1 : 0 });
+    }
+    if (frames[frames.length - 1].offset < 1) frames.push({ offset: 1, transform: 'translate(' + c * cell + 'px,' + r * cell + 'px)', opacity: 1 });
+    frames[frames.length - 1].opacity = 1;
+    place(el, r, c);
+    el.animate(frames, { duration: dur, delay: delay || 0, easing: 'cubic-bezier(0.45, 0, 0.85, 0.65)', fill: 'backwards' });
+    setTimeout(() => flash(el, 'land', 230), dur + (delay || 0) - 20);
+    return dur + (delay || 0);
+  }
   el.style.transitionDuration = dur + 'ms';
   el.style.transitionTimingFunction = dist ? 'cubic-bezier(0.45, 0, 0.85, 0.65)' : '';
   el.style.transitionDelay = (delay || 0) + 'ms';
