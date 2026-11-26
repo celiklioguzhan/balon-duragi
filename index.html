@@ -428,6 +428,12 @@ body.doom #msg { color: var(--ink); }
 #devBar { display: flex; gap: 6px; padding: 5px 10px; background: #2a1a5e; z-index: 2; }
 #devBar button { flex: 1; font: 700 12px var(--font-body, sans-serif); padding: 5px 8px; border-radius: 10px; border: 2px solid #fff3; background: #ffffff18; color: #fff; }
 #devBar button.on { background: #ffc61a; color: #2a1a5e; border-color: #2a1a5e; }
+.giant-cat { position: absolute; left: 0; top: 0; width: calc(var(--cell) * 4); height: calc(var(--cell) * 4); z-index: 9; pointer-events: none; transition: transform 0.55s cubic-bezier(0.55, 0, 0.9, 0.4); }
+.giant-cat .pix { display: block; width: 100%; height: 100%; image-rendering: pixelated; background-size: contain; background-repeat: no-repeat; filter: drop-shadow(0 6px 0 rgba(42, 26, 94, 0.5)); }
+.giant-cat.stomp .pix { animation: stomp 0.5s ease-out; transform-origin: 50% 100%; }
+@keyframes stomp { 0% { transform: scale(1.15, 0.8); } 40% { transform: scale(0.95, 1.06); } 100% { transform: scale(1); } }
+.giant-cat.leave { opacity: 0; transition: opacity 0.4s, transform 0.4s; }
+.rocketX::before { content: "✚"; } .giant { background: linear-gradient(135deg, #ffd1e8, #ff7ac8); }
 @media (prefers-reduced-motion: reduce) {
   .tile, .inner { transition-duration: 0.01s !important; }
   #scoreNum.bump, .sstar.pop, #wheelFab, .fab-rot, .bfly, #coach, .count.dia.pulse, .cutin, .catbtn.pulse, .tile.pick .inner, .cat-run .pix.jump, .cat-run.sleep .pix, .dream .glass, .screen.shake, .ember, .lava, .doomie, .sp::after, .rainbow, .tile.born .inner, .tile.hint .inner, .tile.land .inner, .floaty, .fly, #marker .bob, .node.open .n-top, .moves.low, #board.shake, .card, .big-stars span, .medal { animation: none; }
@@ -798,7 +804,7 @@ const CATS = {
     how: '', after: 'Paşa uyudu, sen 3 hamle kazandın. Sıkışınca çağır!' },
 };
 // Puan: balon başına 30, zincirin her adımında katlanır; engeller, özel taşlar ve yavrular ek puan verir.
-const SCORE = { balloon: 30, block: 60, rescue: 1000, special: { rocketH: 200, rocketV: 200, rocketX: 450, bomb: 300, rainbow: 500 }, finaleSpecial: 400, finaleMove: 250 };
+const SCORE = { balloon: 30, block: 60, rescue: 1000, special: { rocketH: 200, rocketV: 200, rocketX: 450, giant: 900, bomb: 300, rainbow: 500 }, finaleSpecial: 400, finaleMove: 250 };
 const SPAWN_LUCK = 0.2;       // yukarıdan düşen balonun alttakiyle aynı renkte gelme şansı: zincirleri sıklaştırır
 const COMBO_GIFT = { 4: 'rocket', 6: 'bomb', 8: 'rainbow' };   // bu zincir uzunluğunda tahtaya hediye özel taş düşer
 const DIAMOND_BIG = 10;        // bu duraktan sonra (0'dan sayılır: 11. durak ve sonrası) ödül büyür
@@ -847,7 +853,7 @@ function hardOf(level) {
 
 function rnd(n) { return Math.floor(Math.random() * n); }
 function inB(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
-const SPECIALS = { rocketH: 1, rocketV: 1, rocketX: 1, bomb: 1, rainbow: 1 };
+const SPECIALS = { rocketH: 1, rocketV: 1, rocketX: 1, giant: 1, bomb: 1, rainbow: 1 };
 function isSpecial(t) { return !!t && SPECIALS[t.kind] === 1; }
 function canSwap(t) { return !!t && ((t.kind === 'b' && !t.lock) || isSpecial(t) || t.kind === 'kitten'); }
 /** Yanında eşleşme olunca ya da patlamayla kırılan engeller. */
@@ -970,6 +976,11 @@ function blastCells(grid, r, c, color) {
   const t = grid[r][c], cells = [[r, c]];
   if (t.kind === 'rocketH') { for (let x = 0; x < COLS; x++) cells.push([r, x]); }
   else if (t.kind === 'rocketV') { for (let y = 0; y < ROWS; y++) cells.push([y, c]); }
+  else if (t.kind === 'giant') {
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (inB(r + dy, c + dx)) cells.push([r + dy, c + dx]);
+    for (let x = 0; x < COLS; x++) cells.push([r, x]);
+    for (let y = 0; y < ROWS; y++) cells.push([y, c]);
+  }
   else if (t.kind === 'rocketX') { for (let x = 0; x < COLS; x++) cells.push([r, x]); for (let y = 0; y < ROWS; y++) cells.push([y, c]); }
   else if (t.kind === 'bomb') {
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
@@ -1152,7 +1163,11 @@ function move(g, a, b) {
   if (b) {
     g.grid[a[0]][a[1]] = tb; g.grid[b[0]][b[1]] = ta;
     // iki roket birleşince artı roket olur: biri satırı, öteki sütunu temizler (yatay+yatay da)
-    if (isRocket(ta) && isRocket(tb)) {
+    if (ta.kind === 'bomb' && tb.kind === 'bomb') {
+      // iki bomba: gökten dev kedi iner, pati darbesi 5x5 alanı ve iki çizgiyi temizler
+      ta.kind = 'giant'; g.grid[a[0]][a[1]] = null; cross = 'giant';
+      acts.push({ r: b[0], c: b[1], color: -1 });
+    } else if (isRocket(ta) && isRocket(tb)) {
       // iki roket tek taşta birleşir: artı roket, aynı merkezden hem satırı hem sütunu temizler
       ta.kind = 'rocketX'; g.grid[a[0]][a[1]] = null; cross = true;
       acts.push({ r: b[0], c: b[1], color: -1 });
@@ -2549,7 +2564,34 @@ async function attempt(a, b) {
     await wait(190);
     elA.classList.remove('lift');
   }
-  if (res.cross && elA && elB) {
+  if (res.cross === 'giant' && elA && elB) {
+    // iki bomba birleşir, gökten dev bir kedi iner ve pati vurur
+    elB.classList.add('merge'); place(elB, b[0], b[1]);
+    for (const [id, el] of els) if (el === elB) els.delete(id);
+    await wait(200);
+    elB.remove();
+    flash(elA, 'born', 440);
+    const looks = Object.keys(CATS);
+    const giant = document.createElement('div');
+    giant.className = 'giant-cat';
+    giant.innerHTML = '<span class="pix" style="background-image:' + catBg(looks[rnd(looks.length)], true) + '"></span>';
+    const gx = (b[1] - 1.5) * cell, gy = (b[0] - 2.6) * cell;
+    giant.style.transform = 'translate(' + gx + 'px,' + (-5 * cell) + 'px)';
+    board.appendChild(giant);
+    beep(1200, 0.6, 'sine', 0.06, 0.25);
+    fxText(b[0] - 1.2, b[1], 'DEV KEDİ!', '#ffe94d', cell * 0.6, 1.1);
+    void giant.offsetWidth;
+    giant.classList.add('drop');
+    giant.style.transform = 'translate(' + gx + 'px,' + gy + 'px)';
+    await wait(560);
+    // pati darbesi
+    beep(70, 0.6, 'sawtooth', 0.22, 0.4); setTimeout(() => meow(), 80); buzz(120);
+    if (!reduced) flash($('#game'), 'shake', 470);
+    fxRing(b[0], b[1], '#ffffff', cell * 3.4, 0.6, 12); fxRing(b[0], b[1], '#ffcf3f', cell * 4.2, 0.8, 8);
+    fxDebris(b[0], b[1]); fxStars(b[0], b[1], '#ffe94d', 18);
+    giant.classList.add('stomp');
+    setTimeout(() => { giant.classList.add('leave'); setTimeout(() => giant.remove(), 450); }, 520);
+  } else if (res.cross && elA && elB) {
     // iki roket kesişir: artı roket
     // ikinci roket birincinin içine kayar, tek bir artı roket doğar
     elB.classList.add('merge'); place(elB, b[0], b[1]);
@@ -2606,7 +2648,7 @@ async function playGift(gift, combo) {
   flash(el, 'born', 440);
   fxRing(gift.r, gift.c, '#ffcf3f', cell * 1.6, 0.7, 7); fxStars(gift.r, gift.c, '#ffe94d', 14);
   beep(988, 0.3, 'triangle', 0.12, 1.4);
-  const name = { rocketH: 'roket', rocketV: 'roket', rocketX: 'artı roket', bomb: 'bomba', rainbow: 'gökkuşağı' }[gift.tile.kind];
+  const name = { rocketH: 'roket', rocketV: 'roket', rocketX: 'artı roket', giant: 'dev kedi', bomb: 'bomba', rainbow: 'gökkuşağı' }[gift.tile.kind];
   say(combo + ' kombo hediyesi: ' + name + '!', true);
   await wait(500);
 }
@@ -2918,6 +2960,7 @@ async function playStep(step, combo) {
     origin = origin || bl;
     if (bl.kind === 'rocketH') fxLightning(bl.r, bl.c, true);
     else if (bl.kind === 'rocketV') fxLightning(bl.r, bl.c, false);
+    else if (bl.kind === 'giant') { for (const [y, x] of [[bl.r, bl.c]]) { fxLightning(y, x, true); fxLightning(y, x, false); } fxDebris(bl.r, bl.c); }
     else if (bl.kind === 'rocketX') { fxLightning(bl.r, bl.c, true); fxLightning(bl.r, bl.c, false); fxRing(bl.r, bl.c, '#ffe94d', cell * 1.5, 0.45, 8); }
     else if (bl.kind === 'bomb') {
       fxRing(bl.r, bl.c, '#ffcf3f', cell * 3, 0.7, 12); fxRing(bl.r, bl.c, '#ffffff', cell * 2, 0.5, 7);
