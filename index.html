@@ -411,9 +411,22 @@ body.doom #msg { color: var(--ink); }
 #finalSum div.total { border-top: 2.5px solid var(--ink); margin-top: 6px; padding-top: 6px; font-size: 18px; color: var(--accent); }
 #endExtra[hidden] { display: none; }
 
+.cat-run.sleep .pix { animation: snooze 1.3s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes snooze { 0%, 100% { transform: rotate(-80deg) scale(0.92, 0.86); } 50% { transform: rotate(-80deg) scale(0.98, 0.94); } }
+.shade.night { background: radial-gradient(circle at 78% 14%, rgba(255, 243, 196, 0.25), transparent 30%), rgba(14, 22, 70, 0.62); }
+.shade.night .moon { position: absolute; right: 12%; top: 6%; width: calc(var(--cell) * 0.8); height: calc(var(--cell) * 0.8); border-radius: 50%; box-shadow: calc(var(--cell) * -0.2) calc(var(--cell) * 0.08) 0 0 #fff3c4; }
+.dream { position: absolute; left: 0; top: 0; z-index: 8; pointer-events: none; animation: shadeIn 0.4s both; }
+.dream.out { animation: shadeOut 0.3s both; }
+.dream i { position: absolute; border-radius: 50%; background: #fff; border: 3px solid var(--ink); }
+.dream i:nth-child(1) { width: 10px; height: 10px; left: -6px; top: calc(var(--cell) * 1.25); }
+.dream i:nth-child(2) { width: 16px; height: 16px; left: 4px; top: calc(var(--cell) * 0.9); }
+.dream b { position: absolute; left: 14px; top: 0; width: calc(var(--cell) * 1.15); height: calc(var(--cell) * 0.95); border-radius: 50%; background: #fff; border: 3px solid var(--ink); display: grid; place-items: center; font-size: calc(var(--cell) * 0.5); }
+.dream .glass { display: inline-block; animation: rewind 0.9s linear infinite; }
+@keyframes rewind { to { transform: rotate(-360deg); } }
+.moon-orb { position: fixed; z-index: 60; margin: -18px 0 0 -18px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 800 15px "Baloo 2", sans-serif; color: #2a1a5e; background: radial-gradient(circle at 35% 35%, #fffbe6, #ffd95a); box-shadow: 0 0 14px 4px rgba(255, 233, 120, 0.8); pointer-events: none; transition: transform 0.6s cubic-bezier(0.5, -0.3, 0.6, 1); }
 @media (prefers-reduced-motion: reduce) {
   .tile, .inner { transition-duration: 0.01s !important; }
-  #scoreNum.bump, .sstar.pop, #wheelFab, .fab-rot, .bfly, #coach, .count.dia.pulse, .cutin, .catbtn.pulse, .tile.pick .inner, .cat-run .pix.jump, .screen.shake, .ember, .lava, .doomie, .sp::after, .rainbow, .tile.born .inner, .tile.hint .inner, .tile.land .inner, .floaty, .fly, #marker .bob, .node.open .n-top, .moves.low, #board.shake, .card, .big-stars span, .medal { animation: none; }
+  #scoreNum.bump, .sstar.pop, #wheelFab, .fab-rot, .bfly, #coach, .count.dia.pulse, .cutin, .catbtn.pulse, .tile.pick .inner, .cat-run .pix.jump, .cat-run.sleep .pix, .dream .glass, .screen.shake, .ember, .lava, .doomie, .sp::after, .rainbow, .tile.born .inner, .tile.hint .inner, .tile.land .inner, .floaty, .fly, #marker .bob, .node.open .n-top, .moves.low, #board.shake, .card, .big-stars span, .medal { animation: none; }
 }
 </style>
 </head>
@@ -776,7 +789,7 @@ const CATS = {
     info: 'Avlanır: 8 pençe atar. Önce engellere (sandık, kül, kor), engel kalmazsa balonlara.',
     how: '', after: '8 pençe: önce engeller, sonra balonlar!' },
   tembel: { name: 'Paşa', title: 'Uykucu Bilge', price: 280, target: false, demoAt: 10,
-    info: 'Hamle sayacının üstünde uyur: 3 hamle daha kazanırsın.',
+    info: 'Tahtanın ortasında uyur; rüyasında zaman geri akar, 3 hamle kazanırsın.',
     how: '', after: 'Paşa uyudu, sen 3 hamle kazandın. Sıkışınca çağır!' },
 };
 // Puan: balon başına 30, zincirin her adımında katlanır; engeller, özel taşlar ve yavrular ek puan verir.
@@ -834,6 +847,7 @@ function isSpecial(t) { return !!t && SPECIALS[t.kind] === 1; }
 function canSwap(t) { return !!t && ((t.kind === 'b' && !t.lock) || isSpecial(t) || t.kind === 'kitten'); }
 /** Yanında eşleşme olunca ya da patlamayla kırılan engeller. */
 function breakable(t) { return !!t && (t.kind === 'crate' || t.kind === 'ash' || t.kind === 'ember' || t.kind === 'ice'); }
+function isRocket(t) { return !!t && (t.kind === 'rocketH' || t.kind === 'rocketV'); }
 function isVoid(t) { return !!t && t.kind === 'void'; }
 function isB(t, color) { return !!t && t.kind === 'b' && (color === undefined || t.color === color); }
 
@@ -1128,8 +1142,11 @@ function move(g, a, b) {
   if (b && (!canSwap(tb) || Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) !== 1)) return null;
   if (!b && !isSpecial(ta)) return null;
   const acts = [];
+  let cross = false;
   if (b) {
     g.grid[a[0]][a[1]] = tb; g.grid[b[0]][b[1]] = ta;
+    // iki roket birleşince artı roket olur: biri satırı, öteki sütunu temizler (yatay+yatay da)
+    if (isRocket(ta) && isRocket(tb)) { ta.kind = 'rocketH'; tb.kind = 'rocketV'; cross = true; }
     if (isSpecial(ta)) acts.push({ r: b[0], c: b[1], color: isB(tb) ? tb.color : -1 });
     if (isSpecial(tb)) acts.push({ r: a[0], c: a[1], color: isB(ta) ? ta.color : -1 });
     if (!acts.length && !matchAt(g.grid, a[0], a[1]) && !matchAt(g.grid, b[0], b[1])) {
@@ -1147,7 +1164,7 @@ function move(g, a, b) {
   if (g.boss && !g.won) { boss = bossTurn(g); g.won = g.goals.every(x => x.left <= 0); }
   g.lost = !g.won && g.moves <= 0;
   const shuffled = !g.won && !g.lost ? ensureMove(g) : false;
-  return { steps, gift, boss, shuffled, swapped: b ? [a, b] : null };
+  return { steps, gift, boss, shuffled, swapped: b ? [a, b] : null, cross };
 }
 
 /**
@@ -2520,6 +2537,17 @@ async function attempt(a, b) {
     await wait(190);
     elA.classList.remove('lift');
   }
+  if (res.cross && elA && elB) {
+    // iki roket kesişir: artı roket
+    elA.firstChild.className = tileClass({ kind: 'rocketH', color: -1 });
+    elB.firstChild.className = tileClass({ kind: 'rocketV', color: -1 });
+    flash(elA, 'born', 440); flash(elB, 'born', 440);
+    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    fxRing(m[0], m[1], '#ffe94d', cell * 1.6, 0.5, 8); fxStars(m[0], m[1], '#ffe94d', 12);
+    fxText(m[0] - 0.6, m[1], 'ARTI ROKET!', '#ffe94d', cell * 0.55, 0.9);
+    beep(988, 0.12, 'square', 0.08, 1.3);
+    await wait(260);
+  }
   if (res.invalid) {
     beep(150, 0.1, 'square', 0.05);
     place(elA, a[0], a[1]); place(elB, b[0], b[1]);
@@ -2808,24 +2836,61 @@ async function runCat(kind, r, c) {
     setTimeout(() => shade.remove(), 300);
     await wait(200);
   } else if (kind === 'tembel') {
-    jump(r, c, 320); await wait(360);
-    face(true);
+    // Paşa ağır ağır yürür, yastığına kıvrılır; gece çöker, rüyasında kum saati geri döner,
+    // her horlamada bir ay ışığı hamle sayacına uçar
+    moveTo(r, c, 900); await wait(950);
+    fxText(r - 0.7, c + 0.1, 'Haaav~', '#fff3c4', cell * 0.42, 1.1);
+    beep(260, 0.5, 'sine', 0.08, 0.6);
+    await wait(520);
+    cat.classList.add('sleep');
+    const night = document.createElement('div');
+    night.className = 'shade night';
+    night.innerHTML = '<span class="moon"></span>';
+    board.appendChild(night);
+    const dream = document.createElement('div');
+    dream.className = 'dream';
+    dream.style.transform = 'translate(' + (c + 0.55) * cell + 'px,' + (r - 1.9) * cell + 'px)';
+    dream.innerHTML = '<i></i><i></i><b><span class="glass">⏳</span></b>';
+    board.appendChild(dream);
+    for (let k = 0; k < 6; k++) setTimeout(() => fxStars(Math.random() * ROWS * 0.6, Math.random() * COLS, '#fff3c4', 3), k * 140);
+    await wait(500);
+    const box = $('#movesBox');
     for (let i = 0; i < 3; i++) {
-      fxText(r - 0.6 - i * 0.3, c + 0.4 + i * 0.3, 'Z', '#ffffff', cell * (0.45 + i * 0.12), 0.9);
+      fxText(r - 0.5 - i * 0.25, c + 0.45 + i * 0.25, 'Z', '#cfe4ff', cell * (0.4 + i * 0.12), 1.1);
+      beep(150 - i * 12, 0.45, 'sine', 0.1, 0.7);
+      const from = cat.getBoundingClientRect(), to = box.getBoundingClientRect();
+      const orb = document.createElement('div');
+      orb.className = 'moon-orb';
+      orb.textContent = '+1';
+      orb.style.left = (from.left + from.width / 2) + 'px';
+      orb.style.top = (from.top + from.height * 0.3) + 'px';
+      document.body.appendChild(orb);
+      void orb.offsetWidth;
+      orb.style.transform = 'translate(' + (to.left + to.width / 2 - from.left - from.width / 2) + 'px,' + (to.top + to.height / 2 - from.top - from.height * 0.3) + 'px) scale(0.6)';
+      await wait(620);
+      orb.remove();
       $('#moves').textContent = game.moves - 2 + i;
-      flash($('#movesBox'), 'bump', 320);
-      beep(330 + i * 80, 0.2, 'sine', 0.09, 1);
-      await wait(380);
+      flash(box, 'bump', 320);
+      beep(660 + i * 120, 0.18, 'triangle', 0.09, 1.2);
+      await wait(260);
     }
+    // sabah: gerinir, uyanır
+    night.classList.add('out'); dream.classList.add('out');
+    setTimeout(() => { night.remove(); dream.remove(); }, 320);
+    cat.classList.remove('sleep');
+    face(true);
+    jump(r, c, 360);
+    fxText(r - 0.8, c, 'Mırr!', '#ffe94d', cell * 0.5, 0.8);
+    beep(523, 0.1, 'square', 0.07, 1); setTimeout(() => beep(784, 0.18, 'square', 0.07, 1.2), 110);
     $('#movesBox').classList.toggle('low', game.moves <= 3);
-    await wait(200);
+    await wait(450);
   }
   moveTo(ROWS + 0.6, c, 260);
   setTimeout(() => cat.remove(), 320);
   let n = 0;
   for (const step of res.steps) await playStep(step, ++n);
   if (isDemo) say(CATS[kind].after + ' +1 hediye!');
-  else if (kind === 'tembel') say('Tembel uyudu: 3 hamle daha', true);
+  else if (kind === 'tembel') say('Paşa zamanı geri sardı: +3 hamle', true);
   await settle(res, isDemo ? 0 : n);
 }
 
@@ -3252,6 +3317,8 @@ async function goNext(i, animate) {
   } else {
     scrollToY(nodePos(i + 1).y);
   }
+  // yolculuk sürerken oyuncu durağa dokunup oyuna girdiyse kart açılmaz
+  if (game || !$('#map').classList.contains('on') || $('#level').classList.contains('on')) return;
   openLevel(i + 1);
 }
 
