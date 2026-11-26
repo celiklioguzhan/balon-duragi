@@ -434,6 +434,14 @@ body.doom #msg { color: var(--ink); }
 @keyframes stomp { 0% { transform: scale(1.15, 0.8); } 40% { transform: scale(0.95, 1.06); } 100% { transform: scale(1); } }
 .giant-cat.leave { opacity: 0; transition: opacity 0.4s, transform 0.4s; }
 .rocketX::before { content: "✚"; } .giant { background: linear-gradient(135deg, #ffd1e8, #ff7ac8); }
+.doomie .crown { display: none; }
+.doomie.royal .horn { display: none; }
+.doomie.royal .crown { display: block; position: absolute; left: 50%; top: -17px; width: 30px; height: 14px; margin-left: -15px; background: #ffc61a; border: 2.5px solid var(--ink); border-bottom-width: 3px; clip-path: polygon(0 100%, 0 0, 25% 55%, 50% 0, 75% 55%, 100% 0, 100% 100%); }
+.doomie.royal { border-radius: 40% 40% 46% 46%; }
+.doomie.trick-freeze .mouth { border-color: #fff; } .doomie.trick-all { box-shadow: 0 0 0 3px #b57bff, 0 0 14px #b57bff; }
+.node.boss.locked .n-top { fill: #c98aa3; } .node.boss.locked .n-side { fill: #8a5a6e; }
+.n-crown { fill: #ffc61a; stroke: #2a1a5e; stroke-width: 3; stroke-linejoin: round; }
+.lv-boss { display: block; color: #ff4f8b; font-family: var(--font-display); font-size: 18px; margin: 2px 0; }
 @media (prefers-reduced-motion: reduce) {
   .tile, .inner { transition-duration: 0.01s !important; }
   #scoreNum.bump, .sstar.pop, #wheelFab, .fab-rot, .bfly, #coach, .count.dia.pulse, .cutin, .catbtn.pulse, .tile.pick .inner, .cat-run .pix.jump, .cat-run.sleep .pix, .dream .glass, .screen.shake, .ember, .lava, .doomie, .sp::after, .rainbow, .tile.born .inner, .tile.hint .inner, .tile.land .inner, .floaty, .fly, #marker .bob, .node.open .n-top, .moves.low, #board.shake, .card, .big-stars span, .medal { animation: none; }
@@ -505,7 +513,7 @@ body.doom #msg { color: var(--ink); }
   <div class="hudrow">
     <div class="goals" id="goals" aria-label="Hedefler"></div>
     <div class="boss" id="boss" hidden>
-      <div class="doomie" id="doomie" aria-hidden="true"><i class="horn l"></i><i class="horn r"></i><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></div>
+      <div class="doomie" id="doomie" aria-hidden="true"><i class="horn l"></i><i class="horn r"></i><i class="crown"></i><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></div>
       <div class="boss-mid">
         <b id="bossName"></b>
         <div class="hp" role="img" id="hpBar"><div id="hpFill"></div><span id="hpText"></span></div>
@@ -765,6 +773,27 @@ const LEVEL_MOVES = [11, 15, 16, 11, 24, 18, 21, 24, 23, 29, 19, 28, 26, 25, 25,
 const SHAPE_SKIP = [13, 15, 17, 25, 26, 49, 58];
 // Yıldız puan eşikleri [1, 2, 3]: otomatik oyuncunun kazandığı oyunların puan dağılımından (2: %20'lik dilim, 3: ortancanın %95'i).
 const LEVEL_STARS = [[5000, 12500, 20000], [7000, 17000, 27000], [6500, 16500, 21500], [1500, 4000, 13500], [6000, 14500, 19500], [6000, 15000, 20000], [3500, 9500, 12500], [7000, 17500, 20000], [4500, 10500, 13000], [6000, 15000, 17000], [4500, 11500, 13000], [5500, 13500, 16000], [4500, 11000, 13500], [6500, 16500, 18000], [4500, 12000, 13500], [7000, 18000, 24500], [5000, 12000, 13500], [7000, 18000, 21000], [5000, 13000, 15500], [6500, 16000, 20000], [5000, 13000, 16000], [6000, 15000, 22000], [5000, 13000, 16500], [4500, 11000, 16500], [4000, 10500, 15500], [14000, 35500, 47500], [14500, 36000, 48000], [11500, 28500, 37500], [8000, 20000, 29000], [6000, 15000, 21500], [7000, 17500, 24500], [3500, 9000, 10500], [4500, 11500, 14500], [9500, 24000, 29500], [8500, 21000, 30500], [12000, 30000, 32000], [6500, 16500, 20000], [9500, 24000, 27500], [7000, 18000, 21500], [4000, 10000, 13500], [4500, 11500, 15000], [6000, 14500, 25500], [13000, 32500, 38500], [6000, 15500, 24500], [4500, 11500, 13500], [8000, 20500, 30000], [5500, 14000, 17000], [5500, 14000, 16500], [5000, 13000, 17500], [15500, 38000, 41000], [6000, 15000, 20500], [9000, 22500, 32000], [5000, 13000, 14500], [9500, 24000, 34000], [7000, 17500, 24500], [10000, 24500, 29000], [4500, 11500, 15500], [6000, 15000, 22000], [12000, 30000, 52500], [7500, 18000, 25000]];
+// Boss durakları: her 10 durakta bir (0'dan sayılır: 9, 19, ...). Her boss'un kendine özgü bir hilesi var.
+// hp ve moves otomatik oyuncuyla ayarlandı (calibb.js). Renkler: 0 kırmızı, 1 sarı, 2 yeşil, 3 mavi, 4 mor, 5 pembe.
+const BOSS_TRICKS = {
+  freeze: { name: 'Dondurur', info: 'balonları buza çevirir' },
+  lock:   { name: 'Zincirler', info: 'balonlara zincir vurur' },
+  crate:  { name: 'Sandık atar', info: 'balonların yerine sandık atar' },
+  quake:  { name: 'Sarsar', info: 'bir sırayı kaydırır' },
+  mix:    { name: 'Boyar', info: 'balonları dayanıklı rengine boyar' },
+  all:    { name: 'Her şey', info: 'her saldırıda başka bir hile yapar' },
+};
+const BOSS_STOPS = {
+  9:  { name: 'Buzdiş',        title: 'Kış Prensi',      body: '#7fd6ff', weak: 0, resist: 3, trick: 'freeze', hp: 0, moves: 24 },
+  19: { name: 'Zincirbaz',     title: 'Demir Usta',      body: '#9aa0b8', weak: 1, resist: 4, trick: 'lock',   hp: 0, moves: 24 },
+  29: { name: 'Sandıkçı Dev',  title: 'Kaya Bekçisi',    body: '#c9a36a', weak: 2, resist: 0, trick: 'crate',  hp: 0, moves: 24 },
+  39: { name: 'Fırtına Gözü',  title: 'Bulut Lordu',     body: '#ffc61a', weak: 4, resist: 1, trick: 'quake',  hp: 0, moves: 24 },
+  49: { name: 'Gölge Kraliçe', title: 'Ay Kraliçesi',    body: '#7b5cff', weak: 3, resist: 2, trick: 'mix',    hp: 0, moves: 24 },
+  59: { name: 'Kara Delik',    title: 'Yıldız Yutucu',   body: '#3b2f6e', weak: 0, resist: 4, trick: 'all',    hp: 0, moves: 26 },
+};
+const BOSS_STOP_HP = { 9: 1040, 19: 1160, 29: 1260, 39: 1400, 49: 1520, 59: 1520 };
+const BOSS_BONUS = 25;   // boss ilk kez yenilince ek elmas
+for (const k in BOSS_STOPS) BOSS_STOPS[k].hp = BOSS_STOP_HP[k];
 LEVELS.forEach((l, i) => {
   l.name = l.place || PLACE_NAMES[i];
   l.zodiac = l.sign + ' · ' + l.planet;
@@ -774,6 +803,15 @@ LEVELS.forEach((l, i) => {
   const base = l.layout || Array.from({ length: ROWS }, (_, r) => (r >= ROWS - (l.crateRows || 0) ? 'C' : '.').repeat(COLS));
   l.shape = i < 2 || SHAPE_SKIP.includes(i) ? null : SHAPE_CYCLE[(i - 2) % SHAPE_CYCLE.length];
   l.layout = shapeLayout(base, l.shape);
+  if (BOSS_STOPS[i]) {
+    // boss durağı: tam kare tahta, tek hedef boss'un canı
+    const b = BOSS_STOPS[i];
+    l.bossStop = b; l.shape = null; l.crateRows = 0;
+    l.layout = Array.from({ length: ROWS }, () => '.'.repeat(COLS));
+    l.moves = b.moves; l.colors = 5; l.stars = null;   // yıldız kalan hamleye göre (Doomies gibi)
+    l.goals = [{ type: 'boss', n: b.hp }];
+    return;
+  }
   const flat = l.layout.join('');
   const count = ch => flat.split(ch).length - 1;
   l.goals = l.goals.map(g => {
@@ -847,7 +885,7 @@ const BOSS_HP = [760,  780,  1000,  1085,  990,  1030,  500,  1085,  585,  655, 
 /** Durağın Doomies etabı: hedef yerine canı olan bir patron. */
 function hardOf(level) {
   const i = Math.max(0, LEVELS.indexOf(level));
-  return { ...level, hard: true, doom: true, crateRows: 0, layout: null, shape: null, element: SIGN_ELEMENT[i % 4], hp: BOSS_HP[i], moves: i >= 20 ? Math.min(30, level.moves + 2) : level.moves + 2,
+  return { ...level, bossStop: null, colors: LEVELS[i].bossStop ? 5 : level.colors, hard: true, doom: true, crateRows: 0, layout: null, shape: null, element: SIGN_ELEMENT[i % 4], hp: BOSS_HP[i], moves: i >= 20 ? Math.min(30, level.moves + 2) : level.moves + 2,
     goals: [{ type: 'boss', n: BOSS_HP[i] }] };
 }
 
@@ -893,7 +931,10 @@ function createGame(level) {
   const g = { level, grid, goals: level.goals.map(x => ({ ...x, left: x.n })), moves: level.moves, score: 0, won: false, lost: false, lava: 0, boss: null };
   if (level.doom) {
     const el = ELEMENTS[level.element];
-    g.boss = { element: level.element, name: el.name, weak: el.weak, resist: el.resist, hp: level.hp, max: level.hp, every: 3, timer: 3, lavaTimer: LAVA_EVERY, rage: false, recede: false, n: 0 };
+    g.boss = { doom: true, element: level.element, name: el.name, weak: el.weak, resist: el.resist, hp: level.hp, max: level.hp, every: 3, timer: 3, lavaTimer: LAVA_EVERY, rage: false, recede: false, n: 0 };
+  } else if (level.bossStop) {
+    const d = level.bossStop;
+    g.boss = { doom: false, name: d.name, title: d.title, body: d.body, trick: d.trick, weak: d.weak, resist: d.resist, hp: d.hp, max: d.hp, every: 3, timer: 3, lavaTimer: Infinity, rage: false, recede: false, n: 0 };
   }
   ensureMove(g);
   return g;
@@ -1283,6 +1324,7 @@ function bossTurn(g) {
     if (--t.fuse <= 0) { g.grid[r][c] = null; g.moves = Math.max(0, g.moves - 1); burned = true; events.push({ type: 'burn', r, c }); }
   }
   if (burned) gravity(g);
+  if (!b.doom) return stopBossTurn(g, events);
   // can yarıya inince patron öfkelenir: kaya yağar, daha sık saldırır
   if (!b.rage && b.hp <= b.max / 2) {
     b.rage = true; b.every = 2; b.timer = Math.min(b.timer, 2);
@@ -1344,6 +1386,40 @@ function settleBoard(g) {
     spawned = spawned.concat(gravity(g));
   }
   return { spawned, rescued };
+}
+
+/** Boss durağındaki boss'un sırası: yarı canda öfkelenir, her saldırıda hilesini yapar. */
+function stopBossTurn(g, events) {
+  const b = g.boss;
+  if (!b.rage && b.hp <= b.max / 2) {
+    b.rage = true; b.every = 2; b.timer = Math.min(b.timer, 1);
+    events.push({ type: 'rage' });
+  }
+  if (--b.timer <= 0) {
+    b.timer = b.every;
+    const kind = b.trick === 'all' ? ['freeze', 'lock', 'crate', 'quake', 'mix'][b.n % 5] : b.trick;
+    b.n++;
+    const n = b.rage ? 4 : 3;
+    if (kind === 'quake') {
+      const row = rnd(ROWS);
+      g.grid[row].unshift(g.grid[row].pop());
+      events.push({ type: 'quake', row });
+    } else {
+      const cells = randomBalloons(g, kind === 'mix' ? n + 2 : n);
+      for (const [r, c] of cells) {
+        const t = g.grid[r][c];
+        if (kind === 'freeze') g.grid[r][c] = { id: _id++, kind: 'ice', color: -1, hp: 2 };
+        else if (kind === 'crate') g.grid[r][c] = { id: _id++, kind: 'crate', color: -1 };
+        else if (kind === 'lock') t.lock = true;
+        else if (kind === 'mix') t.color = b.resist;
+      }
+      events.push({ type: kind, cells });
+    }
+  }
+  const rescued = settleBoard(g).rescued;
+  const layout = snapshot(g);
+  const steps = resolve(g, [], []);
+  return { events, layout, rescued, steps, timer: b.timer, lavaTimer: b.lavaTimer };
 }
 
 /** Hedeflerde kalan toplam. */
@@ -1969,12 +2045,13 @@ function renderMap() {
     if (px + w > MAP_W - 4) px = p.x - 42 - w;
     if (px < 4) px = p.x + 42 + w <= MAP_W - 4 ? p.x + 42 : Math.max(4, Math.min(MAP_W - 4 - w, px));
     const label = 'Durak ' + (i + 1) + ', ' + level.name + (state === 'locked' ? ', kilitli' : save.gold[i] ? ', altın kazanıldı' : save.stars[i] ? ', ' + save.stars[i] + ' yıldız' : '');
-    o += '<g class="node ' + state + '" data-i="' + i + '" role="button" tabindex="' + (state === 'locked' ? -1 : 0) + '" aria-label="' + label + '">' +
+    o += '<g class="node ' + state + (level.bossStop ? ' boss' : '') + '" data-i="' + i + '" role="button" tabindex="' + (state === 'locked' ? -1 : 0) + '" aria-label="' + label + '">' +
       '<ellipse cx="' + (p.x + 3) + '" cy="' + (p.y + 15) + '" rx="35" ry="14" fill="rgba(0,70,30,0.35)"/>' +
       '<ellipse class="n-side" cx="' + p.x + '" cy="' + (p.y + 8) + '" rx="31" ry="23"/>' +
       '<ellipse class="n-top" cx="' + p.x + '" cy="' + p.y + '" rx="31" ry="23"/>' +
       '<ellipse cx="' + (p.x - 9) + '" cy="' + (p.y - 9) + '" rx="12" ry="6" fill="rgba(255,255,255,0.28)"/>' +
       '<text class="n-no" x="' + p.x + '" y="' + (p.y + 8) + '">' + (i + 1) + '</text>' +
+      (level.bossStop ? '<path class="n-crown" d="M' + (p.x - 16) + ' ' + (p.y - 22) + ' l4 -16 l7 9 l5 -13 l5 13 l7 -9 l4 16z"/>' : '') +
       (save.stars[i] ? '<text class="n-stars" x="' + p.x + '" y="' + (p.y + 50) + '">' + '★'.repeat(save.stars[i]) + '</text>' : '') +
       '<rect class="n-plate" x="' + px.toFixed(1) + '" y="' + (p.y - 15) + '" width="' + w.toFixed(1) + '" height="28" rx="14"/>' +
       '<text class="n-name" x="' + (px + 12).toFixed(1) + '" y="' + (p.y + 4) + '">' + level.glyph + ' ' + level.name + '</text></g>';
@@ -2064,7 +2141,7 @@ function openLevel(i) {
   const level = LEVELS[i], hard = hardOf(level);
   $('#lvGlyph').textContent = level.glyph;
   $('#lvTitle').textContent = level.name;
-  $('#lvGoals').innerHTML = '<span class="lv-zodiac">' + level.zodiac + '</span>Hedef: ' + goalText(level) + (save.combo[i] >= 2 ? ' · Kombo rekoru x' + save.combo[i] : '');
+  $('#lvGoals').innerHTML = '<span class="lv-zodiac">' + level.zodiac + '</span>' + (level.bossStop ? '<b class="lv-boss">BOSS: ' + level.bossStop.title + ' ' + level.bossStop.name + '</b> ' + BOSS_TRICKS[level.bossStop.trick].info + '. Canını bitir! ' : 'Hedef: ' + goalText(level)) + (save.combo[i] >= 2 ? ' · Kombo rekoru x' + save.combo[i] : '');
   $('#lvStars').innerHTML = save.stars[i] ? starSpans(save.stars[i], 3) : '';
   const play = $('#lvPlay'), hb = $('#lvHard');
   play.innerHTML = (save.stars[i] ? 'Tekrar oyna' : 'Oyna') + '<small>1. etap · ' + level.moves + ' hamle</small>';
@@ -2436,20 +2513,22 @@ async function startLevel(i, hard, testLv) {
   renderCatBar();
   houseFace(0);
   document.body.classList.toggle('doom', !!hard);
-  $('#goals').hidden = !!hard;
-  $('#goals').style.display = hard ? 'none' : '';
-  $('#boss').hidden = !hard;
-  if (hard) {
+  const hasBoss = !!game.boss;
+  $('#goals').hidden = hasBoss;
+  $('#goals').style.display = hasBoss ? 'none' : '';
+  $('#boss').hidden = !hasBoss;
+  if (hasBoss) {
     const b = game.boss;
     $('#bossName').textContent = b.name;
-    $('#doomie').style.setProperty('--body', ELEMENTS[b.element].body);
-    $('#doomie').className = 'doomie';
-    $('#bossInfo').innerHTML = 'Zayıf <i style="background:' + COLOR_HEX[b.weak] + '"></i> · Dayanıklı <i style="background:' + COLOR_HEX[b.resist] + '"></i>';
+    $('#doomie').style.setProperty('--body', b.doom ? ELEMENTS[b.element].body : b.body);
+    $('#doomie').className = 'doomie' + (b.doom ? '' : ' royal trick-' + b.trick);
+    $('#bossInfo').innerHTML = 'Zayıf <i style="background:' + COLOR_HEX[b.weak] + '"></i> · Dayanıklı <i style="background:' + COLOR_HEX[b.resist] + '"></i>' + (b.doom ? '' : ' · ' + BOSS_TRICKS[b.trick].name);
   }
   $('#stName').textContent = testMode ? 'Editör denemesi' : LEVELS[i].glyph + ' ' + LEVELS[i].name;
-  $('#stNo').textContent = testMode ? 'Editör denemesi' : hard ? 'Doomies modu' : '';
-  $('#stNo').hidden = !testMode && !hard;
-  $('#stNo').classList.toggle('hard', !!hard);
+  const bossStop = !hard && !testMode && !!LEVELS[i].bossStop;
+  $('#stNo').textContent = testMode ? 'Editör denemesi' : hard ? 'Doomies modu' : bossStop ? 'Boss savaşı' : '';
+  $('#stNo').hidden = !testMode && !hard && !bossStop;
+  $('#stNo').classList.toggle('hard', !!hard || bossStop);
   $('#end').classList.remove('on');
   $('#level').classList.remove('on');
   $('#strip').classList.remove('on');
@@ -2475,6 +2554,7 @@ async function startLevel(i, hard, testLv) {
   els.forEach(resetMotion);
   busy = false;
   if (hard) say(game.boss.name + ': ' + COLOR_NAMES[game.boss.weak].toLowerCase() + ' balonlar 2 kat vurur');
+  else if (game.boss) say(game.boss.title + ' ' + game.boss.name + ' ' + BOSS_TRICKS[game.boss.trick].info + '! ' + COLOR_NAMES[game.boss.weak] + ' balonlar 2 kat vurur', true, null, true);
   else if (i === 0 && save.stars[0] === 0) say('Selam, ben Misket! Bir balonu kaydır, 3 tane yan yana getir');
   else if (newTip()) { /* yeni engel ya da hedef ilk kez görülüyor: Misket anlattı */ }
   else if (LEVELS[i].crateRows && save.stars[i] === 0) say('Sandıkları kırmak için yanlarında eşleşme yap');
@@ -3099,13 +3179,26 @@ async function playBoss(bt) {
     else if (ev.type === 'lava') { msgs.push('Lav yükseldi'); quake = true; }
     else if (ev.type === 'ember') { msgs.push('Kor: ' + EMBER_FUSE + ' hamlede söndür'); attack = true; }
     else if (ev.type === 'ash') { msgs.push('Kül yağdı'); attack = true; }
-    else if (ev.type === 'quake') { msgs.push('Deprem: bir sıra kaydı'); quake = true; attack = true; }
+    else if (ev.type === 'quake') { msgs.push(game.boss.doom ? 'Deprem: bir sıra kaydı' : game.boss.name + ' bir sırayı kaydırdı'); quake = true; attack = true; }
+    else if (ev.type === 'freeze') { msgs.push(game.boss.name + ' balonları dondurdu'); attack = true; for (const [r, c] of ev.cells) fxBurst(r, c, '#b8f0ff', 10); }
+    else if (ev.type === 'lock') { msgs.push(game.boss.name + ' zincir vurdu'); attack = true; for (const [r, c] of ev.cells) fxBurst(r, c, '#c9ccd8', 8); }
+    else if (ev.type === 'crate') { msgs.push(game.boss.name + ' sandık attı'); attack = true; quake = true; for (const [r, c] of ev.cells) fxBurst(r, c, '#c9a36a', 10); }
+    else if (ev.type === 'mix') { msgs.push(game.boss.name + ' balonları boyadı'); attack = true; for (const [r, c] of ev.cells) fxBurst(r, c, COLOR_HEX[game.boss.resist], 10); }
   }
+  if (!game.boss.doom) for (const ev of bt.events) if (ev.type === 'rage') { msgs.splice(msgs.indexOf('Doomie öfkelendi: kaya yağıyor'), 1, game.boss.name + ' öfkelendi: daha sık saldıracak'); }
   if (bt.events.length) {
     if (attack) { flash($('#doomie'), 'atk', 460); beep(140, 0.4, 'sawtooth', 0.14, 0.5); }
     if (quake && !reduced) { flash(board, 'shake', 340); buzz(60); }
     say(msgs.join(' · '));
     const longest = syncTo(bt.layout);
+    // boyanan ya da zincirlenen taşlar yerinde değişir
+    for (const it of bt.layout) {
+      const el = els.get(it.tile.id);
+      if (!el) continue;
+      const cls = tileClass(it.tile);
+      if (el.firstChild.className !== cls) { el.firstChild.className = cls; flash(el, 'born', 440); }
+      if (!!it.tile.lock !== el.classList.contains('locked')) { el.classList.toggle('locked', !!it.tile.lock); flash(el, 'born', 440); }
+    }
     await wait(Math.max(longest, 320) + 160);
     els.forEach(resetMotion);
   }
@@ -3298,6 +3391,7 @@ function finish() {
   let gain = 0;
   if (won) {
     gain = diamondsFor(i, stars, hardMode, hardMode ? !save.gold[i] : save.stars[i] === 0);
+    if (!hardMode && LEVELS[i].bossStop && save.stars[i] === 0) gain += BOSS_BONUS;
     save.diamonds += gain;
     if (hardMode) save.gold[i] = true; else save.stars[i] = Math.max(save.stars[i], stars);
     storeSave();
