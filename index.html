@@ -424,6 +424,10 @@ body.doom #msg { color: var(--ink); }
 .dream .glass { display: inline-block; animation: rewind 0.9s linear infinite; }
 @keyframes rewind { to { transform: rotate(-360deg); } }
 .moon-orb { position: fixed; z-index: 60; margin: -18px 0 0 -18px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 800 15px "Baloo 2", sans-serif; color: #2a1a5e; background: radial-gradient(circle at 35% 35%, #fffbe6, #ffd95a); box-shadow: 0 0 14px 4px rgba(255, 233, 120, 0.8); pointer-events: none; transition: transform 0.6s cubic-bezier(0.5, -0.3, 0.6, 1); }
+#wheelFab { bottom: 54px; }
+#devBar { display: flex; gap: 6px; padding: 5px 10px; background: #2a1a5e; z-index: 2; }
+#devBar button { flex: 1; font: 700 12px var(--font-body, sans-serif); padding: 5px 8px; border-radius: 10px; border: 2px solid #fff3; background: #ffffff18; color: #fff; }
+#devBar button.on { background: #ffc61a; color: #2a1a5e; border-color: #2a1a5e; }
 @media (prefers-reduced-motion: reduce) {
   .tile, .inner { transition-duration: 0.01s !important; }
   #scoreNum.bump, .sstar.pop, #wheelFab, .fab-rot, .bfly, #coach, .count.dia.pulse, .cutin, .catbtn.pulse, .tile.pick .inner, .cat-run .pix.jump, .cat-run.sleep .pix, .dream .glass, .screen.shake, .ember, .lava, .doomie, .sp::after, .rainbow, .tile.born .inner, .tile.hint .inner, .tile.land .inner, .floaty, .fly, #marker .bob, .node.open .n-top, .moves.low, #board.shake, .card, .big-stars span, .medal { animation: none; }
@@ -448,6 +452,7 @@ body.doom #msg { color: var(--ink); }
   <button id="coach" aria-label="Elmasla kedi dükkânından kedi alırsın. Dükkânı aç">Elmas kazandın! Buraya dokun: elmasla <b>kedi</b> alırsın, kediler bölümleri kolaylaştırır.</button>
   <button id="wheelFab" aria-label="Günlük çark"><svg viewBox="-20 -20 40 40" aria-hidden="true"><g class="fab-rot"><path d="M0 0 L0 -17 A17 17 0 0 1 17 0Z" fill="#ff4f8b"/><path d="M0 0 L17 0 A17 17 0 0 1 0 17Z" fill="#ffc61a"/><path d="M0 0 L0 17 A17 17 0 0 1 -17 0Z" fill="#3ddc84"/><path d="M0 0 L-17 0 A17 17 0 0 1 0 -17Z" fill="#4aa8ff"/><circle r="17" fill="none" stroke="#2a1a5e" stroke-width="3"/><circle r="4" fill="#fff" stroke="#2a1a5e" stroke-width="2"/></g></svg><b>Çark</b></button>
   <div id="mapScroll"><svg id="mapSvg" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Durak haritası"></svg></div>
+  <div id="devBar"><button id="devAdmin">Yönetici: kapalı</button><button id="devReset">Sıfırla</button></div>
 </main>
 
 <main id="editor" class="screen">
@@ -1432,6 +1437,7 @@ const COLOR_NAMES = ['Kırmızı', 'Sarı', 'Yeşil', 'Mavi', 'Mor', 'Pembe'];
 const COLOR_HEX = ['#ff4d5e', '#ffc93c', '#37d48f', '#4aa8ff', '#b57bff', '#ff7ac8'];
 const KEY = 'balon-duragi-v4';
 const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const freshSave = () => ({ stars: LEVELS.map(() => 0), gold: LEVELS.map(() => false), combo: LEVELS.map(() => 0), muted: false, diamonds: 0, cats: { zipzip: 0, yumak: 0, mirmir: 0, golge: 0, tembel: 0 }, given: {}, demo: {}, diaTip: false, wheel: '', seen: {}, dev: false, spent: 0 });
 let save = { stars: LEVELS.map(() => 0), gold: LEVELS.map(() => false), combo: LEVELS.map(() => 0), muted: false, diamonds: 0, cats: { zipzip: 0, yumak: 0, mirmir: 0, golge: 0, tembel: 0 }, given: {}, demo: {}, diaTip: false, wheel: '', seen: {}, dev: false, spent: 0 };
 let game = null, levelIndex = 0, hardMode = false, cell = 48, busy = false;
 let testMode = false, shownScore = 0, litStars = 0, skipFinale = false, extraBuys = 0;
@@ -3333,6 +3339,70 @@ async function goNext(i, animate) {
   openLevel(i + 1);
 }
 
+// ---- geliştirici düğmeleri
+// Yönetici modu: açınca asıl kayıt saklanır, bütün duraklar/kediler açılır, 300 elmas gelir.
+// Kapatınca asıl kayıt geri yüklenir (yönetici modundaki ilerleme silinir).
+// Sıfırla: kayıt (ve varsa yönetici yedeği) bir kenara konur, oyun baştan başlar; tekrar basınca eski kayıt geri gelir.
+const ADMIN_KEY = KEY + '-admin-yedek', RESET_KEY = KEY + '-sifir-yedek';
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* yok say */ } }
+function reloadSave() {
+  const muted = save.muted;
+  save = freshSave();
+  loadSave();
+  save.muted = muted;
+  storeSave();
+  $('#edOpen').hidden = !save.dev;
+  showMap(0);
+  renderDevBar();
+}
+function renderDevBar() {
+  const adm = lsGet(ADMIN_KEY) !== null, rst = lsGet(RESET_KEY) !== null;
+  $('#devAdmin').textContent = adm ? 'Yönetici: AÇIK' : 'Yönetici: kapalı';
+  $('#devAdmin').classList.toggle('on', adm);
+  $('#devReset').textContent = rst ? 'Eski kaydı geri getir' : 'Sıfırla';
+  $('#devReset').classList.toggle('on', rst);
+}
+function initDevBar() {
+  renderDevBar();
+  $('#devAdmin').addEventListener('click', () => {
+    const backup = lsGet(ADMIN_KEY);
+    if (backup === null) {
+      lsSet(ADMIN_KEY, JSON.stringify(save));
+      save.stars = save.stars.map(v => Math.max(v, 1));
+      save.diamonds += 300;
+      for (const k in CATS) { giveCat(k); save.demo[k] = true; }
+      save.wheel = ''; save.dev = true;
+      storeSave();
+      meow();
+    } else {
+      lsSet(KEY, backup);
+      lsSet(ADMIN_KEY, null);
+    }
+    reloadSave();
+  });
+  let armed = 0;
+  $('#devReset').addEventListener('click', () => {
+    const backup = lsGet(RESET_KEY);
+    if (backup === null) {
+      // yanlışlıkla basılmasın: ilk dokunuş onay ister
+      if (Date.now() - armed > 3000) { armed = Date.now(); $('#devReset').textContent = 'Emin misin? Tekrar bas'; setTimeout(renderDevBar, 3000); return; }
+      armed = 0;
+      lsSet(RESET_KEY, JSON.stringify({ save: lsGet(KEY) || JSON.stringify(save), admin: lsGet(ADMIN_KEY) }));
+      lsSet(KEY, JSON.stringify(Object.assign(freshSave(), { muted: save.muted })));
+      lsSet(ADMIN_KEY, null);
+    } else {
+      try {
+        const b = JSON.parse(backup);
+        lsSet(KEY, b.save);
+        lsSet(ADMIN_KEY, b.admin);
+      } catch (e) { /* bozuk yedek */ }
+      lsSet(RESET_KEY, null);
+    }
+    reloadSave();
+  });
+}
+
 function start(data) {
   loadSave();
   if (data && data.save && Array.isArray(data.save.stars) && data.save.stars.length === LEVELS.length && data.save.cats) save = data.save;
@@ -3352,20 +3422,8 @@ function start(data) {
   $('#wheel').addEventListener('click', ev => { if (ev.target.id === 'wheel' && !wheelBusy) $('#wheel').classList.remove('on'); });
   $('#shopClose').addEventListener('click', () => $('#shop').classList.remove('on'));
   $('#shop').addEventListener('click', ev => { if (ev.target.id === 'shop') $('#shop').classList.remove('on'); });
-  // deneme kısayolu: başlığa art arda 5 kez dokununca bütün duraklar açılır ve 300 elmas gelir
-  let taps = 0, tapTimer = null;
-  $('#brand').addEventListener('click', () => {
-    clearTimeout(tapTimer);
-    tapTimer = setTimeout(() => { taps = 0; }, 1500);
-    if (++taps < 5) return;
-    taps = 0;
-    save.stars = save.stars.map(v => Math.max(v, 1));
-    save.diamonds += 300;
-    for (const k in CATS) { giveCat(k); save.demo[k] = true; }
-    save.wheel = ''; save.dev = true;
-    $('#edOpen').hidden = false;
-    storeSave(); meow(); showMap(0);
-  });
+  // yönetici modu ve sıfırlama (şimdilik herkese açık geliştirici düğmeleri)
+  initDevBar();
   board.addEventListener('pointerdown', onDown);
   board.addEventListener('pointermove', onMove);
   board.addEventListener('pointerup', onUp);
