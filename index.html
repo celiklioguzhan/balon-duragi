@@ -896,14 +896,14 @@ const ELEMENTS = {
   water: { name: 'Su Doomie',     weak: 1, resist: 3, body: '#3d8bff' },
 };
 const SIGN_ELEMENT = ['fire', 'earth', 'air', 'water'];   // burçlar sırayla ateş, toprak, hava, su
-// Doomies canları: kurallar değiştikten sonra otomatik oyuncuyla yeniden ölçüldü (calibd.js, eskisiyle %30 harmanlı).
+// Doomies canları: otomatik oyuncuyla ölçüldü (calibd.js), sonra oyuncu geri bildirimiyle %20 düşürüldü; hamle +4.
 const LAVA_EVERY = 5, MAX_LAVA = 3, EMBER_FUSE = 3;
-const BOSS_HP = [605, 845, 935, 695, 1140, 1025, 490, 1260, 625, 1235, 515, 735, 610, 660, 630, 605, 695, 715, 530, 1425, 840, 990, 1415, 920, 815, 1430, 1330, 1325, 740, 1255, 1270, 770, 895, 1445, 1380, 1375, 735, 875, 1245, 1300, 1035, 1455, 1585, 1250, 710, 1025, 665, 860, 955, 1620, 1325, 1385, 685, 1460, 810, 1155, 905, 1275, 1275, 1400];
+const BOSS_HP = [485, 675, 750, 555, 910, 820, 390, 1010, 500, 990, 410, 590, 490, 530, 505, 485, 555, 570, 425, 1140, 670, 790, 1130, 735, 650, 1145, 1065, 1060, 590, 1005, 1015, 615, 715, 1155, 1105, 1100, 590, 700, 995, 1040, 830, 1165, 1270, 1000, 570, 820, 530, 690, 765, 1295, 1060, 1110, 550, 1170, 650, 925, 725, 1020, 1020, 1120];
 
 /** Durağın Doomies etabı: hedef yerine canı olan bir patron. */
 function hardOf(level) {
   const i = Math.max(0, LEVELS.indexOf(level));
-  return { ...level, bossStop: null, colors: LEVELS[i].bossStop ? 5 : level.colors, hard: true, doom: true, crateRows: 0, layout: null, shape: null, element: SIGN_ELEMENT[i % 4], hp: BOSS_HP[i], moves: i >= 20 ? Math.min(30, level.moves + 2) : level.moves + 2,
+  return { ...level, bossStop: null, colors: LEVELS[i].bossStop ? 5 : level.colors, hard: true, doom: true, crateRows: 0, layout: null, shape: null, element: SIGN_ELEMENT[i % 4], hp: BOSS_HP[i], moves: i >= 20 ? Math.min(32, level.moves + 4) : level.moves + 4,
     goals: [{ type: 'boss', n: BOSS_HP[i] }] };
 }
 
